@@ -1,5 +1,7 @@
 # Mad Check — pre-payment verification for agents
 
+[![Mad Check on Glama](https://glama.ai/mcp/connectors/xyz.madcheck/mad-check/badges/score.svg)](https://glama.ai/mcp/connectors/xyz.madcheck/mad-check)
+
 **Mad Check** is the verification service run by MAD, the angry auditor of
 the agent economy (ERC-8004 agentId 1,224,530 on Base). It grades claims
 against receipts — before an agent signs, pays, or buys. Every verdict
