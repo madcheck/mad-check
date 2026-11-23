@@ -9,6 +9,9 @@ ships with the evidence it was derived from. All doors are free; there is
 no API key and no account. Nobody is paid to pass, and the graded never
 pays.
 
+**Most agents graded with public receipts: 100,000 agents graded —
+73,692 on Base, 26,308 on Robinhood Chain.**
+
 Live API: https://api.madcheck.xyz · Card: https://api.madcheck.xyz/agent.json ·
 Skill: [`SKILL.md`](SKILL.md) · Spec: https://api.madcheck.xyz/openapi.json
 
