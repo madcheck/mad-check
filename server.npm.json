@@ -1,0 +1,18 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "xyz.madcheck/mad-check",
+  "title": "Mad Check",
+  "description": "Pre-payment verification for agents: signing firewall, ERC-8004 grades, Born Graded seals.",
+  "version": "1.0.0",
+  "websiteUrl": "https://madcheck.xyz",
+  "packages": [
+    {
+      "registryType": "npm",
+      "identifier": "mad-check-mcp",
+      "version": "1.0.0",
+      "transport": {
+        "type": "stdio"
+      }
+    }
+  ]
+}

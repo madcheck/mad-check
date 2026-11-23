@@ -1,0 +1,26 @@
+{
+  "bin": {
+    "mad-check-mcp": "server.mjs"
+  },
+  "description": "MCP server for the Mad Check API \u2014 pre-payment verification for agents: signing firewall, ERC-8004 counterparty grades, endpoint/x402 checks, Born Graded seal lookups, witness ledger reads. Thin proxy to https://api.madcheck.xyz; all doors free, no key.",
+  "engines": {
+    "node": ">=18"
+  },
+  "keywords": [
+    "mcp",
+    "mad-check",
+    "erc-8004",
+    "x402",
+    "eip-3009",
+    "agent-verification"
+  ],
+  "license": "MIT",
+  "main": "server.mjs",
+  "name": "mad-check-mcp",
+  "scripts": {
+    "start": "node server.mjs"
+  },
+  "type": "module",
+  "version": "1.0.0",
+  "mcpName": "xyz.madcheck/mad-check"
+}
