@@ -416,7 +416,7 @@ class NodeHandler(BaseHTTPRequestHandler):
         q = parse_qs(u.query)
         if path == "/":
             return self._send(200, {
-                "node": "mad-node-robinhood", "version": "0.1.6",
+                "node": "mad-node-robinhood", "version": "0.1.7",
                 "doors": {
                     "/v1/node/status": "free — running, tip, lag",
                     "/v1/node/verdicts?block=N": "free — the look",
@@ -463,7 +463,7 @@ class NodeHandler(BaseHTTPRequestHandler):
             except (ValueError, IndexError):
                 last_block = None
         return self._send(200, {
-            "node": "mad-node-robinhood", "version": "0.1.6",
+            "node": "mad-node-robinhood", "version": "0.1.7",
             "running": bool(st and st.get("grader", {}).get("alive")),
             "grader_pid": (st or {}).get("grader", {}).get("pid"),
             "supervisor_pid": (st or {}).get("supervisor_pid"),

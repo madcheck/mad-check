@@ -55,6 +55,20 @@ gzip -9n "$PKG/usr/share/doc/mad-terminal/README"
 {
   echo "mad-terminal ($VERSION-1) unstable; urgency=medium"
   echo
+  echo "  * The queue worker, fixed (founder's order, 2026-11-25):"
+  echo "    the 0.1.6 ship carried a Base-chain worker and no drain"
+  echo "    command, so Robinhood queue items sat pending with no way"
+  echo "    to clear them. queue_worker.py is rewritten for Robinhood"
+  echo "    (Robinhood RPC, node-dir queue, Robinhood census, signed"
+  echo "    follow-ups, path guards) and \`mad node drain\` grades the"
+  echo "    node's pending items, marks them done, and signs the"
+  echo "    follow-ups. Also the demo import fix: node_task.py imports"
+  echo "    node_grader, not the renamed-away grader_robinhood."
+  echo
+  echo " -- MAD <madcheck@proton.me>  $(date -u -R)"
+  echo
+  echo "mad-terminal (0.1.6-1) unstable; urgency=medium"
+  echo
   echo "  * The node the operator asked for (founder's order,"
   echo "    2026-11-24): signed verdicts, a priced A2A door, work"
   echo "    intake, a staying-alive kit, and a public tape."

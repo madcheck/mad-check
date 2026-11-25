@@ -188,6 +188,17 @@ Why this outgrows Bankr:
    still FREE: no license, no monthly fee, no DUST for node work.
    The operator earns through the toll split, never through a
    license.
+8. 0.1.7 (IN BUILD 2026-11-25) — the queue worker, rewired: the
+   0.1.6 ship carried the Base-chain worker (wrong RPC, wrong
+   queue path, Base census section), so Robinhood queue items sat
+   pending with no way to clear them. queue_worker.py now drains
+   the node-dir queue (queue-robinhood.jsonl) against the Robinhood
+   RPC with the grader's 429-aware backoff, resolves agentIds from
+   receipts, looks them up in the Robinhood census, signs every
+   follow-up with the operator key, and writes the resolved
+   agentId back onto the queue item for `mad node tape --resolve`.
+   New command: `mad node drain [--list]`. It never touches the
+   Base queue or the live grader's queue file.
 
 ## Open questions for the founder (tomorrow, not tonight)
 - Treasury venue: which tokenized-stock market the treasury

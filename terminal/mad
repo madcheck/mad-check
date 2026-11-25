@@ -43,7 +43,7 @@ import time
 import urllib.error
 import urllib.request
 
-VERSION = "0.1.6"
+VERSION = "0.1.7"
 API = os.environ.get("MAD_API", "https://api.madcheck.xyz").rstrip("/")
 MAD_AGENT_ID = 1224530
 MAD_RH_AGENT_ID = 26409
@@ -2278,7 +2278,7 @@ NODE_UA = {"User-Agent": "Mozilla/5.0 (X11; Linux x86_64) "
                          "Chrome/126.0.0.0 Safari/537.36",
            "Content-Type": "application/json"}
 NODE_SUBS = ["start", "stop", "status", "license", "task", "serve",
-             "jobs", "tape", "sign", "anchor", "key", "toll"]
+             "jobs", "tape", "drain", "sign", "anchor", "key", "toll"]
 
 
 def _node_dir():
@@ -2403,7 +2403,7 @@ def cmd_node(argv):
     if not argv:
         raise UsageError(
             "`mad node` what? start, stop, status, license, task, "
-            "serve, jobs, tape, sign, anchor, key, or toll. "
+            "serve, jobs, tape, drain, sign, anchor, key, or toll. "
             "`mad node start` runs it free - no license, no wallet "
             "needed. --wallet 0x... names the operator, --owner is "
             "MAD's own node, --test is the same free path.")
@@ -2413,7 +2413,8 @@ def cmd_node(argv):
         close = _closest(sub, NODE_SUBS)
         raise UsageError(
             "`node %s` isn't a thing. %sstart, stop, status, license, "
-            "task, serve, jobs, tape, sign, anchor, key, or toll - "
+            "task, serve, jobs, tape, drain, sign, anchor, key, or "
+            "toll - "
             "that's the whole node." % (
                 sub, "Did you mean `mad node %s`? " % close
                 if close else ""))
@@ -2431,6 +2432,8 @@ def cmd_node(argv):
         return _node_jobs(rest)
     if sub == "tape":
         return _node_tape(rest)
+    if sub == "drain":
+        return _node_drain(rest)
     if sub == "sign":
         return _node_sign(rest)
     if sub == "anchor":
@@ -3429,6 +3432,57 @@ def _node_tape_resolve(entries):
     return EXIT_OK
 
 
+def _node_drain(argv):
+    """`mad node drain [--list]`: run the queue worker against the
+    node's own queue (queue-robinhood.jsonl in the node dir) — the
+    Robinhood registry births the hot path enqueued. --list just
+    shows the queue without grading it. The worker prints one line
+    per item plus a JSON summary as its last line; this command
+    voices the counts from that summary. The live grader's queue
+    (~/workspace/mad-block-grader/queue-robinhood.jsonl) is never
+    touched — the worker refuses to run against it."""
+    flags, pos = parse_flags(argv, {"list": "bool"})
+    if pos:
+        raise UsageError(
+            "`mad node drain` takes flags, not arguments. "
+            "`mad node drain` grades the node's pending queue items; "
+            "--list just shows them.")
+    pkg = _pkg_node_dir()
+    if not pkg or not os.path.isfile(
+            os.path.join(pkg, "queue_worker.py")):
+        voice("The queue worker isn't in this install. Reinstall "
+              "mad-terminal 0.1.7 - queue_worker.py ships inside it.")
+        return EXIT_TRANSPORT
+    env = dict(os.environ)
+    env["MAD_NODE_DIR"] = _node_dir()
+    mode = "--list" if flags.get("list") else "--drain"
+    proc = subprocess.run(
+        [sys.executable, os.path.join(pkg, "queue_worker.py"), mode],
+        cwd=_node_dir(), capture_output=True, text=True, env=env,
+        timeout=300)
+    print(proc.stdout, end="")
+    if proc.stderr:
+        print(proc.stderr, end="", file=sys.stderr)
+    if mode == "--drain" and proc.returncode == 0:
+        summary = None
+        for line in reversed(proc.stdout.splitlines()):
+            line = line.strip()
+            if line.startswith("{"):
+                try:
+                    summary = json.loads(line)
+                except ValueError:
+                    pass
+                break
+        if summary:
+            voice("Queue drained: %(drained)s graded, %(done)s done, "
+                  "%(retried)s still pending, %(signed)s signed with "
+                  "the operator key. The follow-ups are in "
+                  "followups-robinhood.jsonl — and `mad node tape "
+                  "--resolve` can read the newborns' grades now."
+                  % summary)
+    return proc.returncode
+
+
 def _node_sign(argv):
     flags, pos = parse_flags(argv, {"backfill": "bool",
                                     "block": "value",
@@ -3837,6 +3891,10 @@ THE COMMANDS
                               the public tape - flags vs outcomes,
                               chain checked; --resolve follows up
                               every open flag
+  mad node drain [--list]     grade the node's pending queue items
+                              (Robinhood registry births) - receipts
+                              read, agentIds resolved, follow-ups
+                              signed; --list just shows the queue
   mad node sign --backfill | --block N | --verify
                               sign the ledger with the operator key,
                               or verify every signature in it

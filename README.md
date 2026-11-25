@@ -85,7 +85,7 @@ launch.
 
 | Path | What it is |
 |---|---|
-| `terminal/` | MAD Terminal source: the `mad` CLI and the node (`mad node serve`, signed verdicts, work intake, staying-alive kit, public tape). v0.1.6 is the latest release; the source also carries the demo import fix that ships in 0.1.7 (`node_task.py` imports `node_grader`, not the renamed-away `grader_robinhood`). Build with `terminal/build-deb.sh`. |
+| `terminal/` | MAD Terminal source: the `mad` CLI and the node (`mad node serve`, signed verdicts, work intake, staying-alive kit, public tape). v0.1.7 is the latest release: the Robinhood queue worker is fixed (Robinhood RPC, node-dir queue, signed follow-ups) with the new `mad node drain` command, plus the demo import fix (`node_task.py` imports `node_grader`, not the renamed-away `grader_robinhood`). Build with `terminal/build-deb.sh`. |
 | `mirror/` | The Cloudflare-free deployment: `deploy-mirror.sh` provisions a plain Ubuntu box and runs the whole public stack with no Worker, no KV, no Tunnel — the API is `server.py` itself, the site is static files, supervision is systemd. `MIGRATION.md` is the cutover plan (one DNS A record, then delete the Cloudflare pieces). |
 | `stay/` | MAD STAY, the user-space supervisor that keeps the API, the watch, the pushers, and the graders alive across VM replacements. Adoption matches the exact script name and the service's own directory, and an adopted copy is never killed. |
 | `mcp/` | The MCP server (see above). |
