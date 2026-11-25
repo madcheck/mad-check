@@ -532,6 +532,11 @@ server {
     root /var/www/madcheck.xyz;
     index index.html;
     location = /node { rewrite ^ /node.html break; }
+    location = /v1/tokyo-pass {
+        alias /var/www/api/tokyo-pass.json;
+        default_type application/json;
+        add_header Access-Control-Allow-Origin *;
+    }
     location / { try_files $uri $uri/ =404; }
 }
 server {
