@@ -1,0 +1,53 @@
+#compdef mad
+# zsh completion for mad (the MAD Terminal)
+_mad() {
+  local -a commands
+  commands=(
+    'test:The free look, five stations'
+    'check:Grade an agent, an authorization, or an endpoint'
+    'seal:Born Graded seal lookup'
+    'witness:Read the signed witness ledger'
+    'dust:MAD DUST pool, ledger, balance'
+    'feed:The grades feed'
+    'complain:The Complaint Desk'
+    'ask:Plain English, routed'
+    'mcp:The MCP block for Claude, Codex, Grok'
+    'talk:The interactive REPL'
+    'version:Version'
+    'help:Help, with the face at the foot of it'
+    'fix:Re-grade a FAIL and print the fix'
+    'node:Run the Robinhood node - grade live, serve, take jobs'
+    'tail:The node\'s newest verdicts'
+  )
+  _arguments -C \
+    '1: :->cmd' \
+    '*:: :->args'
+  case $state in
+    cmd) _describe 'mad command' commands ;;
+    args)
+      case ${words[2]} in
+        check) _describe 'check what' \
+          'agent:Grade an ERC-8004 registration' \
+          'authorization:The signing firewall' \
+          'endpoint:Is the door alive' ;;
+        dust) _describe 'dust what' \
+          'pool:The pool' 'ledger:The public ledger' \
+          'balance:One identity' ;;
+        complain) _describe 'complain what' \
+          'file:File a complaint' 'list:Every filing' \
+          'get:One filing' ;;
+        node) _describe 'node what' \
+          'start:Run the node, free' 'stop:Stop it' \
+          'status:Is it running, is it at the tip' \
+          'license:Free, no license' 'serve:The A2A door' \
+          'jobs:Open tasks, priced priority' \
+          'task:Grade a tx, or take a job' \
+          'tape:The public tape' 'sign:Sign or verify the ledger' \
+          'anchor:File a receipt in the witness ledger' \
+          'key:The operator signer' \
+          'toll:What the door collected, the operator share' ;;
+        tail) _arguments '--limit[how many]:N:' ;;
+      esac ;;
+  esac
+}
+_mad "$@"

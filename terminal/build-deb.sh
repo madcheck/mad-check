@@ -1,0 +1,136 @@
+#!/bin/bash
+# Build mad-terminal .deb from the repo files.
+# Staging tree + dpkg-deb --build: debhelper is NOT installed on this VM,
+# so dpkg-buildpackage with the dh rules will fail. The 0.1.0 .deb was
+# built this way and the staged tree is byte-identical to the repo.
+# Usage: ./build-deb.sh [version]   (default: read VERSION from ./mad)
+set -euo pipefail
+cd "$(dirname "$0")"
+VERSION="${1:-$(grep -m1 '^VERSION' mad | sed 's/.*"\([^"]*\)".*/\1/')}"
+PKG="pkg/mad-terminal-$VERSION"
+DEB="mad-terminal_${VERSION}_all.deb"
+
+# Keep the old package file in place; never overwrite a shipped .deb
+# in the repo root silently - the name carries the version, so a bump
+# is a new file.
+rm -rf "$PKG"
+mkdir -p "$PKG/DEBIAN" "$PKG/usr/bin" "$PKG/usr/share/doc/mad-terminal"
+mkdir -p "$PKG/usr/share/man/man1" "$PKG/usr/share/mad-terminal"
+mkdir -p "$PKG/usr/share/bash-completion/completions"
+mkdir -p "$PKG/usr/share/zsh/vendor-completions"
+
+# Binary + avatar (byte-identical to the repo).
+cp mad "$PKG/usr/bin/mad"
+chmod 755 "$PKG/usr/bin/mad"
+cp assets/mad-avatar.jpg "$PKG/usr/share/mad-terminal/mad-avatar.jpg"
+
+# Node (0.1.6): the bundled Robinhood grader + task grader, the
+# census lookup, the known-agent map, the empty flag list, the
+# staying-alive kit (node_stay.py), the A2A serve door
+# (node_serve.py), the signed-verdict crypto (signing.py) and the
+# public tape (node_tape.py). The node writes its own verdicts to
+# the operator's home, never here.
+mkdir -p "$PKG/usr/share/mad-terminal/node"
+cp node/node_grader.py node/node_task.py node/lookup.json \
+   node/known_agents_robinhood.json \
+   node/flagged_addresses_robinhood.json \
+   node/node_stay.py node/node_serve.py node/signing.py \
+   node/node_tape.py node/selftest_robinhood.py \
+   node/queue_worker.py \
+   "$PKG/usr/share/mad-terminal/node/"
+chmod 644 "$PKG/usr/share/mad-terminal/node/"*
+
+# Control: staged control, version bumped, requests added (the node
+# grader's proven transport). (Staged control differs
+# from debian/control: Maintainer MAD <madcheck@proton.me>,
+# Depends python3 (>= 3.8).)
+sed -e "s/^Version: .*/Version: $VERSION/" \
+    -e "s/^Depends: .*/Depends: python3 (>= 3.8), python3-requests/" \
+    pkg/mad-terminal-0.1.0/DEBIAN/control > "$PKG/DEBIAN/control"
+
+# Docs: README + changelog, gzipped with -9n (deterministic).
+cp README.md "$PKG/usr/share/doc/mad-terminal/README"
+gzip -9n "$PKG/usr/share/doc/mad-terminal/README"
+# Staged changelog: 0.1.6 entry on top of the 0.1.5 entry.
+{
+  echo "mad-terminal ($VERSION-1) unstable; urgency=medium"
+  echo
+  echo "  * The node the operator asked for (founder's order,"
+  echo "    2026-11-24): signed verdicts, a priced A2A door, work"
+  echo "    intake, a staying-alive kit, and a public tape."
+  echo "    \`mad node serve\` serves verdicts over a local HTTP API"
+  echo "    (by block, by agent) with the 1c x402 door on full"
+  echo "    verdicts; every verdict is signed by the operator key"
+  echo "    (pure-stdlib secp256k1 + keccak, byte-identical to"
+  echo "    eth_account) and anchorable in the witness ledger"
+  echo "    (\`mad node anchor\`); \`mad node task --take\` takes jobs"
+  echo "    off the MAD TASKS board, grades on demand (tx, agent,"
+  echo "    contract) and delivers; the supervisor (node_stay.py)"
+  echo "    restarts the grader and the door, writes a heartbeat,"
+  echo "    and \`mad node status\` proves it is at the tip (last"
+  echo "    block vs live tip + lag); the public tape"
+  echo "    (\`mad node tape\`, --resolve follows up every open"
+  echo "    flag) publishes flags vs outcomes, hash-chained; the"
+  echo "    toll split is config (\`mad node toll\`), operator share"
+  echo "    UNSET until the founder sets it. Still free: no license,"
+  echo "    no monthly fee, no DUST for node work."
+  echo
+  echo " -- MAD <madcheck@proton.me>  $(date -u -R)"
+  echo
+  echo "mad-terminal (0.1.5-1) unstable; urgency=medium"
+  echo
+  echo "  * Free node (founder's order, 2026-11-24): the \$15/mo"
+  echo "    license is gone - \$15/mo was too much. \`mad node start\`"
+  echo "    runs free, no license, no payment scan, no --payment-tx;"
+  echo "    --test is the same free path. No node earns DUST."
+  echo
+  echo "  * Alive (founder's order, 2026-11-23):"
+  echo "    bare \`mad\` wakes MAD up - what moved since your last run"
+  echo "    (witness seq, dust, freshest grade) and the next check"
+  echo "    worth your time, state in ~/.cache/mad-terminal/state.json;"
+  echo "    every verdict travels 3 lanes (API door live, a pre-computed"
+  echo "    lane, the chained witness ledger with head links recomputed"
+  echo "    here); new \`mad fix\` command - re-grades a FAIL, prints the"
+  echo "    fix, applies the safe reversible ones only on a human yes"
+  echo "    (corrected authorization file, claim-sheet draft, direct"
+  echo "    re-probe). Nothing signs or moves money."
+  echo
+  echo " -- MAD <madcheck@proton.me>  $(date -u -R)"
+  echo
+  echo "mad-terminal (0.1.1-1) unstable; urgency=medium"
+  echo
+  echo "  * Human-friendly pass (founder's order, 2026-11-23):"
+  echo "    --help/-h and --version/-v work anywhere on the line;"
+  echo "    unknown commands/flags suggest the closest real one;"
+  echo "    bare 'mad --' prints the help; the 402 bill is a JSON"
+  echo "    object in --json mode; 'mad help' rewritten examples-first;"
+  echo "    REPL banner gives one example command and drops a leading"
+  echo "    'mad'; missing authorization flags show an example."
+  echo
+  echo " -- MAD <madcheck@proton.me>  Mon, 24 Nov 2026 03:54:00 +0000"
+  echo
+  echo "mad-terminal (0.1.0-1) unstable; urgency=medium"
+  echo
+  echo "  * First release."
+  echo
+  echo " -- MAD <madcheck@proton.me>  Mon, 24 Nov 2026 03:27:40 +0000"
+} | gzip -9n > "$PKG/usr/share/doc/mad-terminal/changelog.gz"
+
+# Man page, gzipped with -9n.
+sed "s/mad-terminal 0\.1\.0/mad-terminal $VERSION/" mad.1 | gzip -9n \
+  > "$PKG/usr/share/man/man1/mad.1.gz"
+
+# Shell completions.
+cp completions/mad.bash "$PKG/usr/share/bash-completion/completions/mad"
+cp completions/_mad "$PKG/usr/share/zsh/vendor-completions/_mad"
+
+# dpkg-deb refuses control dirs with perms outside 0755-0775; the
+# staging tree can inherit setgid/group-write from the parent.
+find "$PKG" -type d -exec chmod 755 {} +
+chmod 755 "$PKG/usr/bin/mad"
+find "$PKG" -type f ! -path "$PKG/usr/bin/mad" -exec chmod 644 {} +
+
+dpkg-deb --build "$PKG" "$DEB"
+echo "built $DEB"
+sha256sum "$DEB"
+ls -l "$DEB"

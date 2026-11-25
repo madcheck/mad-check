@@ -1,0 +1,168 @@
+.TH MAD 1 "2026-11-24" "mad-terminal 0.1.2" "User Commands"
+.SH NAME
+mad \- the MAD Terminal: grade before you sign
+.SH SYNOPSIS
+.B mad
+[\fIcommand\fR] [\fIoptions\fR]
+.SH DESCRIPTION
+.B mad
+is the terminal for MAD, the angry auditor of the agent economy
+(Mad Check, https://madcheck.xyz). It grades claims against receipts
+before you sign or pay: agent registrations, payment authorizations,
+x402 endpoints, and token launches. Every verdict comes with the
+evidence it was derived from. Nobody is paid to pass, and the graded
+never pays.
+.PP
+MAD talks back. Every output is in the auditor's voice \- blunt, angry,
+sarcastic \- and every screen wears MAD's face, drawn from MAD's own
+avatar (@MADx402). The face is the flaming auditor; never a human face.
+.PP
+Free doors first, always. The paid doors cost 0.01 USDC via x402 on
+Base. This terminal NEVER pays: on a 402 it prints the bill and exits
+3. Re-run with
+.B --payment
+and a payload you signed elsewhere if you want the verdict.
+.PP
+The terminal is alive: bare
+.B mad
+wakes MAD up with what moved since your last run (witness seq, dust,
+freshest grade) and the next check worth your time. State lives in
+.I ~/.cache/mad-terminal/state.json
+\\- delete it any time and MAD starts over with no memory. Every
+verdict travels three lanes to the same answer: the API door live, a
+pre-computed lane (the grades feed, or MAD's own memory of your last
+checks), and the chained witness ledger, head links recomputed here.
+A lane that can't be reached says so; it never fakes agreement.
+.B mad fix
+is the fix back: a FAIL prints the fix, and the safe, reversible ones
+are applied only when you say yes. Nothing here signs or moves money,
+ever.
+.SH COMMANDS
+.TP
+.B mad
+With no arguments, drops into the interactive REPL: type plain English
+and MAD answers back, routing to the right command.
+.TP
+.B mad talk
+Same REPL, on purpose.
+.TP
+.B mad test [--agent-id N] [--chain base|robinhood] [--url URL]
+THE MAD TEST: the free five-station battery. Grades yourself by
+default (MAD's own id, 1224530).
+.TP
+.B mad check agent <id> [--chain base|robinhood]
+Grade an ERC-8004 registration: LIVE / DEAD END / GHOST / MALFORMED.
+0.01 USDC.
+.TP
+.B mad check authorization --from 0x.. --to 0x.. --value N --valid-after S --valid-before S --nonce 0x.. --chain-id 8453 --verifying-contract 0x..
+The signing firewall: SIGN / DONT_SIGN, with reasons. 0.01 USDC.
+.TP
+.B mad check endpoint <url>
+Is the door alive, and what does it answer. 0.01 USDC.
+.TP
+.B mad seal <address>
+Born Graded seal lookup: SEALED / UNSEALED / FAILED. Free. The
+contract address, never the name or ticker.
+.TP
+.B mad witness [seq]
+The signed witness ledger: head, or one entry by sequence number. Free.
+.TP
+.B mad dust pool
+The MAD DUST pool: backing, liability, reserve. Free.
+.TP
+.B mad dust ledger [--offset N] [--limit N]
+The public hash-chained dust ledger. Free.
+.TP
+.B mad dust balance <chainId> <agentId>
+One identity's dust. Free.
+.TP
+.B mad feed [--limit N]
+The grades feed, newest first. Free.
+.TP
+.B mad complain file --claimant-name X --respondent-name Y --claim "..." [--category payable|broken_promise|number_mismatch|other]
+File a complaint on the Complaint Desk. Free, public to both parties
+the moment it lands, UNGRADED until MAD grades it.
+.TP
+.B mad complain list
+Every filing on the desk. Free.
+.TP
+.B mad complain get CMP-0001
+One filing in full. Free.
+.TP
+.B mad ask "<plain English>"
+Say it like a human; MAD routes it deterministically (no LLM).
+"grade this agent 1224530", "is 0x... sealed", "show the witness head".
+.TP
+.B mad mcp [--ping]
+The MCP server config block for Claude, Codex, and Grok
+(https://api.madcheck.xyz/mcp, 7 tools). --ping checks the door live.
+.TP
+.B mad fix [agent <id> | seal <address> | endpoint <url> | authorization ...]
+Re-grade the target live, print the fix for every failing finding,
+and apply the safe, reversible ones only when you say yes: a
+corrected authorization file (same value, same recipient, 5-minute
+window), a claim-sheet draft for an UNSEALED token, a direct re-probe
+of a dead door. Bare
+.B mad fix
+fixes the last thing MAD graded in this terminal.
+.TP
+.B mad version
+Version and identity.
+.TP
+.B mad help
+This text, with the face at the foot of it.
+.SH OPTIONS
+.TP
+.B --help, -h
+This help, anywhere on the line: `mad test --help` works.
+.TP
+.B --version, -v
+Version and identity, anywhere on the line: `mad check --version`.
+.TP
+.B --json
+Machine mode: raw JSON on stdout (MAD still talks, on stderr). The
+402 bill is a JSON object in this mode.
+.TP
+.B --payment <base64>
+Resend with a signed x402 payload you made elsewhere. mad never signs.
+.TP
+.B --chain base|robinhood
+Chain for the call. Base 8453 is the default; Robinhood Chain is 4663.
+.SH EXIT STATUS
+.TP
+.B 0
+The call landed and the verdict is in the output.
+.TP
+.B 1
+The API answered and it wasn't good news.
+.TP
+.B 2
+Usage error: a missing id, a bad address, a flag MAD doesn't know.
+.TP
+.B 3
+Payment required: the door printed its 402 bill. Pay it, then come back.
+.TP
+.B 4
+Transport failure: the line died. Never a verdict.
+.SH ENVIRONMENT
+.TP
+.B MAD_API
+API base URL. Default https://api.madcheck.xyz.
+.TP
+.B NO_COLOR
+Set to disable colour (plain ASCII face, plain text).
+.SH EXAMPLES
+.nf
+mad test
+mad check agent 1224530
+mad seal 0x1bc0c42215582d5A085795f4baDbaC3ff36d1Bcb
+mad witness
+mad mcp --ping
+mad ask "grade this agent 1224530"
+mad fix seal 0x1bc0c42215582d5A085795f4baDbaC3ff36d1Bcb
+.fi
+.SH SEE ALSO
+https://madcheck.xyz, https://api.madcheck.xyz/skill.md,
+https://api.madcheck.xyz/openapi.json
+.SH AUTHOR
+MAD <madcheck@proton.me> \- the angry auditor of the agent economy.

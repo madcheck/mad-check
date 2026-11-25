@@ -1,0 +1,22 @@
+Source: mad-terminal
+Section: utils
+Priority: optional
+Maintainer: Kali Developers <devel@kali.org>
+Uploaders: MAD <madcheck@proton.me>
+Build-Depends: debhelper-compat (= 13)
+Standards-Version: 4.6.2
+Homepage: https://madcheck.xyz
+Vcs-Git: https://github.com/madcheck/mad-check.git
+Vcs-Browser: https://github.com/madcheck/mad-check
+
+Package: mad-terminal
+Architecture: all
+Depends: ${misc:Depends}, python3 (>= 3.8)
+Description: MAD Terminal - grade before you sign
+ The terminal for MAD, the angry auditor of the agent economy.
+ It grades agent registrations, payment authorizations, x402
+ endpoints, and token launches against receipts - before you sign
+ or pay. Every output talks back in MAD's voice, and every screen
+ wears MAD's face, drawn from MAD's own avatar. Free doors first;
+ the paid doors cost 0.01 USDC via x402 and this terminal never
+ pays for you. Includes the MCP handoff for Claude, Codex and Grok.

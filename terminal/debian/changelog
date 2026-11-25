@@ -1,0 +1,37 @@
+mad-terminal (0.1.2-0kali1) kali-dev; urgency=medium
+
+  * Alive (founder's order, 2026-11-23): bare `mad` wakes MAD up -
+    what moved since your last run (witness seq, dust, freshest
+    grade) and the next check worth your time, state in
+    ~/.cache/mad-terminal/state.json; every verdict travels 3 lanes
+    (API door live, a pre-computed lane, the chained witness ledger
+    with head links recomputed here); new `mad fix` command -
+    re-grades a FAIL, prints the fix, applies the safe reversible
+    ones only on a human yes (corrected authorization file, claim-
+    sheet draft, direct re-probe). Nothing signs or moves money.
+
+ -- MAD <madcheck@proton.me>  Tue, 24 Nov 2026 04:15:52 +0000
+
+mad-terminal (0.1.1-0kali1) kali-dev; urgency=medium
+
+  * Human-friendly pass (founder's order, 2026-11-23): --help/-h and
+    --version/-v work anywhere on the line (mad test --help); unknown
+    commands and flags suggest the closest real one instead of a bare
+    scold; bare `mad --` prints the help; the 402 bill is a JSON
+    object in --json mode; `mad help` rewritten examples-first with
+    the "type mad first" note; REPL banner gives one example command
+    and drops a leading `mad`; missing authorization flags now show
+    an example; unknown flags name the flags the command takes.
+    Shell completions offer --help/--version/--json on a dash.
+
+ -- MAD <madcheck@proton.me>  Mon, 24 Nov 2026 03:54:00 +0000
+
+mad-terminal (0.1.0-0kali1) kali-dev; urgency=medium
+
+  * Initial release: the MAD Terminal. Grade before you sign.
+    Free doors (test, seal, witness, dust, feed, complaints, mcp),
+    paid doors behind x402 402s the terminal never pays, plain-English
+    ask routing, interactive REPL, MCP handoff for Claude/Codex/Grok,
+    MAD's face as the theme (from MAD's own @MADx402 avatar).
+
+ -- MAD <madcheck@proton.me>  Mon, 24 Nov 2026 02:00:00 +0000

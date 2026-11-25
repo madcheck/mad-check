@@ -1,0 +1,35 @@
+{
+  "source": "MAD @MADx402 X avatar (pbs.twimg.com, 400x400, fetched 2026-11-24)",
+  "palette": [
+    {
+      "hex": "#1b0708",
+      "xterm256": 52,
+      "share_pct": 31.3
+    },
+    {
+      "hex": "#520707",
+      "xterm256": 88,
+      "share_pct": 16.9
+    },
+    {
+      "hex": "#a00806",
+      "xterm256": 124,
+      "share_pct": 15.9
+    },
+    {
+      "hex": "#a7392b",
+      "xterm256": 131,
+      "share_pct": 12.6
+    },
+    {
+      "hex": "#ce6947",
+      "xterm256": 173,
+      "share_pct": 12.5
+    },
+    {
+      "hex": "#751f1a",
+      "xterm256": 95,
+      "share_pct": 10.8
+    }
+  ]
+}

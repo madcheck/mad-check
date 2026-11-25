@@ -1,0 +1,16 @@
+#!/usr/bin/make -f
+%:
+	dh $@
+override_dh_auto_install:
+	mkdir -p debian/mad-terminal/usr/local/bin
+	install -m 755 mad debian/mad-terminal/usr/local/bin/mad
+	mkdir -p debian/mad-terminal/usr/share/mad-terminal
+	install -m 644 assets/mad-avatar.jpg assets/mad-face.txt \
+		assets/mad-face-color.txt assets/mad-face-mini.txt \
+		assets/palette.json debian/mad-terminal/usr/share/mad-terminal/
+	mkdir -p debian/mad-terminal/usr/share/bash-completion/completions
+	install -m 644 completions/mad.bash \
+		debian/mad-terminal/usr/share/bash-completion/completions/mad
+	mkdir -p debian/mad-terminal/usr/share/zsh/vendor-completions
+	install -m 644 completions/_mad \
+		debian/mad-terminal/usr/share/zsh/vendor-completions/_mad

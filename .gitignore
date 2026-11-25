@@ -1,0 +1,6 @@
+# build artifacts
+*.deb
+pkg/
+.audit2/
+__pycache__/
+*.pyc
