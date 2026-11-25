@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>MAD NODE — LIVE</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  body { background: #0a0a0a; color: #e8e8e8; font-family: monospace; margin: 0; padding: 24px; }
+  h1 { color: #ff3b30; font-size: 22px; margin: 0 0 4px; }
+  .sub { color: #888; font-size: 13px; margin-bottom: 20px; }
+  .sub b { color: #e8e8e8; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { text-align: left; color: #888; border-bottom: 1px solid #333; padding: 6px 8px; }
+  td { border-bottom: 1px solid #1c1c1c; padding: 6px 8px; }
+  .pass { color: #3ddc84; } .flag { color: #ff3b30; font-weight: bold; }
+  #status { color: #888; margin-bottom: 12px; }
+  a { color: #ff3b30; }
+</style>
+</head>
+<body>
+<h1>MAD NODE — LIVE</h1>
+<div class="sub">Robinhood Chain block verdicts, graded by MAD. Free sample — about 5 minutes behind the paid live wire. <a href="https://madcheck.xyz">madcheck.xyz</a></div>
+<div id="status">connecting to the sample feed…</div>
+<table>
+  <thead><tr><th>block</th><th>verdict</th><th>txs</th><th>findings</th></tr></thead>
+  <tbody id="rows"></tbody>
+</table>
+<script>
+(function () {
+  var rows = document.getElementById('rows');
+  var status = document.getElementById('status');
+  var seen = {};
+  var order = [];
+  function render() {
+    var html = '';
+    order.slice(0, 30).forEach(function (b) {
+      var r = seen[b];
+      html += '<tr><td>' + r.block + '</td><td class="' + (r.verdict === 'PASS' ? 'pass' : 'flag') + '">' + r.verdict + '</td><td>' + (r.tx_count || 0) + '</td><td>' + (r.findings_count || 0) + '</td></tr>';
+    });
+    rows.innerHTML = html;
+  }
+  var es = new EventSource('https://api.madcheck.xyz/v1/stream/sample');
+  es.onmessage = function (ev) {
+    try {
+      var d = JSON.parse(ev.data);
+      if (d.type === 'block' || d.type === 'node_block') {
+        var b = d.block;
+        if (!seen[b]) { seen[b] = d; order.unshift(b); if (order.length > 60) order.pop(); }
+        status.textContent = 'last graded block ' + order[0] + ' — ' + order.length + ' blocks in view';
+        render();
+      }
+    } catch (e) { /* heartbeat / stats frames pass through */ }
+  };
+  es.onerror = function () { status.textContent = 'feed interrupted — retrying…'; };
+})();
+</script>
+</body>
+</html>

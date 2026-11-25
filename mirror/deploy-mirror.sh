@@ -448,6 +448,7 @@ mkdir -p /home/mad/workspace /var/www/madcheck.xyz /var/www/api
 chown mad:mad /home/mad/workspace /var/www/api
 chown mad:mad /home/mad
 ufw allow OpenSSH >/dev/null 2>&1 || ufw allow 22/tcp >/dev/null 2>&1 || true
+ufw allow 8443/tcp >/dev/null 2>&1 || true
 ufw allow 80/tcp >/dev/null 2>&1 || true
 ufw allow 443/tcp >/dev/null 2>&1 || true
 ufw --force enable >/dev/null 2>&1 || true

@@ -314,7 +314,25 @@ def get_blocks_batch(numbers):
     Returns (tip, [block or None, ...]) — a None entry is a block not
     produced yet. The tip rides in the same round trip, so lag is
     measured per batch instead of bought with a separate ~1.4s call
-    (v0.1 run 3: that call alone cost 7 blocks of lag)."""
+    (v0.1 run 3: that call alone cost 7 blocks of lag).
+    A fat batch dies on the Robinhood RPC with -32003 "response too
+    large" (2026-11-25: 64-block batch at 122640635 crashed the grader
+    17 times in a row). On -32003 the batch splits in half and retries
+    each half, down to a single block — a fat block grades alone instead
+    of killing the whole batch. Splitting never changes the result,
+    only the round trips."""
+    try:
+        return _get_blocks_batch_once(numbers)
+    except RuntimeError as e:
+        if "-32003" in str(e) and len(numbers) > 1:
+            mid = len(numbers) // 2
+            tip_a, first = get_blocks_batch(numbers[:mid])
+            tip_b, second = get_blocks_batch(numbers[mid:])
+            return max(tip_a, tip_b), first + second
+        raise
+
+
+def _get_blocks_batch_once(numbers):
     calls = [("eth_blockNumber", [])]
     calls += [("eth_getBlockByNumber", [hex(x), True]) for x in numbers]
     results = rpc_batch(calls, timeout=60)
