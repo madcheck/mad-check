@@ -416,7 +416,7 @@ class NodeHandler(BaseHTTPRequestHandler):
         q = parse_qs(u.query)
         if path == "/":
             return self._send(200, {
-                "node": "mad-node-robinhood", "version": "0.1.7",
+                "node": "mad-node-robinhood", "version": "0.1.8",
                 "doors": {
                     "/v1/node/status": "free — running, tip, lag",
                     "/v1/node/verdicts?block=N": "free — the look",
@@ -430,7 +430,37 @@ class NodeHandler(BaseHTTPRequestHandler):
                 "price": "0.01 USDC per full verdict, via x402 "
                          "(EIP-3009, Base). The look is free.",
                 "operator": operator_wallet(),
-                "toll_split": toll_split()})
+                "toll_split": toll_split(),
+                "hold_kit": {
+                    "name": "MAD HOLD KIT (0.1.8) — the node holds",
+                    "proves": [
+                        "door-answer health: the supervisor GETs "
+                        "this door and demands the node needle — a "
+                        "live pid is not proof of life; six straight "
+                        "failed probes past the start grace declare "
+                        "a wedge and restart the door",
+                        "a sentinel watches the supervisor and "
+                        "respawns it detached if it falls",
+                        "every daemon the kit (re)starts goes out "
+                        "orphan-to-init, so no starter's death "
+                        "takes the node down",
+                        "an uptime recorder probes every 30s and "
+                        "keeps the log — `mad node hold` reads "
+                        "the receipt back",
+                    ],
+                    "drill": "FREE — `mad node drill` kills this "
+                             "door and times the hold bringing it "
+                             "back; the receipt is signed by the "
+                             "operator's ERC-8004 key and chained "
+                             "onto the node's tape. Proof is the "
+                             "free look; the drill is never sold.",
+                    "binding": "verdicts and drill receipts are "
+                               "signed by the operator identity "
+                               "and hash-chained on the tape, "
+                               "anchored against MAD's witness "
+                               "ledger — a clone gets the code, "
+                               "never the identity, the history, "
+                               "or the standing."}})
         if path == "/v1/node/status":
             return self._status()
         if path == "/v1/node/verdicts":
@@ -463,10 +493,16 @@ class NodeHandler(BaseHTTPRequestHandler):
             except (ValueError, IndexError):
                 last_block = None
         return self._send(200, {
-            "node": "mad-node-robinhood", "version": "0.1.7",
+            "node": "mad-node-robinhood", "version": "0.1.8",
             "running": bool(st and st.get("grader", {}).get("alive")),
             "grader_pid": (st or {}).get("grader", {}).get("pid"),
             "supervisor_pid": (st or {}).get("supervisor_pid"),
+            "hold": (st or {}).get("hold"),
+            "hold_kit": "MAD HOLD KIT (0.1.8): door-answer "
+                        "health, a sentinel over the supervisor, "
+                        "orphan-to-init restarts, an uptime "
+                        "record — `mad node hold` reads it, "
+                        "`mad node drill` proves it, free.",
             "restarts": (st or {}).get("grader", {}).get("restarts", 0),
             "last_block": last_block,
             "chain_tip": tip,

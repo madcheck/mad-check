@@ -43,7 +43,7 @@ import time
 import urllib.error
 import urllib.request
 
-VERSION = "0.1.7"
+VERSION = "0.1.8"
 API = os.environ.get("MAD_API", "https://api.madcheck.xyz").rstrip("/")
 MAD_AGENT_ID = 1224530
 MAD_RH_AGENT_ID = 26409
@@ -2278,7 +2278,8 @@ NODE_UA = {"User-Agent": "Mozilla/5.0 (X11; Linux x86_64) "
                          "Chrome/126.0.0.0 Safari/537.36",
            "Content-Type": "application/json"}
 NODE_SUBS = ["start", "stop", "status", "license", "task", "serve",
-             "jobs", "tape", "drain", "sign", "anchor", "key", "toll"]
+             "jobs", "tape", "drain", "sign", "anchor", "key", "toll",
+             "hold", "drill"]
 
 
 def _node_dir():
@@ -2403,7 +2404,8 @@ def cmd_node(argv):
     if not argv:
         raise UsageError(
             "`mad node` what? start, stop, status, license, task, "
-            "serve, jobs, tape, drain, sign, anchor, key, or toll. "
+            "serve, jobs, tape, drain, sign, anchor, key, toll, "
+            "hold, or drill. "
             "`mad node start` runs it free - no license, no wallet "
             "needed. --wallet 0x... names the operator, --owner is "
             "MAD's own node, --test is the same free path.")
@@ -2413,8 +2415,8 @@ def cmd_node(argv):
         close = _closest(sub, NODE_SUBS)
         raise UsageError(
             "`node %s` isn't a thing. %sstart, stop, status, license, "
-            "task, serve, jobs, tape, drain, sign, anchor, key, or "
-            "toll - "
+            "task, serve, jobs, tape, drain, sign, anchor, key, "
+            "toll, hold, or drill - "
             "that's the whole node." % (
                 sub, "Did you mean `mad node %s`? " % close
                 if close else ""))
@@ -2442,6 +2444,10 @@ def cmd_node(argv):
         return _node_key(rest)
     if sub == "toll":
         return _node_toll(rest)
+    if sub == "hold":
+        return _node_hold(rest)
+    if sub == "drill":
+        return _node_drill(rest)
     return _node_task(rest)
 
 
@@ -2573,7 +2579,9 @@ def _node_start(argv):
     voice("Node running (supervisor pid %d%s). Grading Robinhood "
           "live - `mad tail` shows the verdicts as they land. The "
           "A2A door is on http://%s:%d — status free, verdict line "
-          "free, full verdict 1c." % (
+          "free, full verdict 1c. The hold kit stands watch: "
+          "door-answer health, a sentinel, an uptime log — "
+          "`mad node hold` reads the receipt." % (
               sup_pid,
               ", grader pid %d" % grader_pid if grader_pid else "",
               serve_cfg.get("host", "127.0.0.1"),
@@ -2586,14 +2594,27 @@ def _node_stop(argv):
     if pos:
         raise UsageError("`mad node stop` takes no arguments.")
     st = _node_stay_status()
-    pids = []  # children first, supervisor last
+    pids = []  # children and hold wards first, supervisor last
     if st:
         for key in ("grader", "serve"):
             p = (st.get(key) or {}).get("pid")
             if p:
                 pids.append(p)
+        hold = st.get("hold") or {}
+        for key in ("sentinel", "recorder"):
+            p = (hold.get(key) or {}).get("pid")
+            if p:
+                pids.append(p)
         if st.get("supervisor_pid"):
             pids.append(st["supervisor_pid"])
+    for pid_name in ("node-sentinel.pid", "node-hold-recorder.pid"):
+        try:
+            with open(os.path.join(_node_dir(), pid_name)) as f:
+                p = int(f.read().strip())
+            if p not in pids:
+                pids.append(p)
+        except (OSError, ValueError):
+            pass
     sup = _node_stay_pid()
     if sup and sup not in pids:
         pids.append(sup)
@@ -2627,6 +2648,63 @@ def _node_stop(argv):
     voice("Node stopped (was supervisor pid %s). The ledger stays - "
           "`mad node start` resumes where it left off." % (sup or "?"))
     return EXIT_OK
+
+
+def _node_hold(argv):
+    """The hold kit's receipt (0.1.8): the uptime the recorder
+    witnessed, read back as numbers — uptime %, down events,
+    longest outage, mean recovery per service. The kit itself
+    (door-answer health, the sentinel, the orphan-to-init
+    restarts) runs inside the supervisor; this is only the
+    readback, via node_hold_recorder.py --stats."""
+    flags, pos = parse_flags(argv, {})
+    if pos:
+        raise UsageError("`mad node hold` takes no arguments.")
+    pkg = _pkg_node_dir()
+    if not pkg or not os.path.isfile(
+            os.path.join(pkg, "node_hold_recorder.py")):
+        voice("The hold kit isn't in this install. Reinstall "
+              "mad-terminal 0.1.8 - the hold kit ships inside it.")
+        return EXIT_TRANSPORT
+    env = dict(os.environ)
+    env["MAD_NODE_DIR"] = _node_dir()
+    proc = subprocess.run(
+        [sys.executable,
+         os.path.join(pkg, "node_hold_recorder.py"), "--stats"],
+        cwd=_node_dir(), capture_output=True, text=True, env=env,
+        timeout=60)
+    print(proc.stdout, end="")
+    if proc.stderr:
+        print(proc.stderr, end="", file=sys.stderr)
+    return EXIT_OK if proc.returncode == 0 else EXIT_API_ERROR
+
+
+def _node_drill(argv):
+    """The hold kit's kill drill (0.1.8): kill the serve door,
+    time the hold bringing it back, file the signed receipt on
+    the tape. FREE by doctrine — the drill is proof, and proof
+    is the free look; there is no payment anywhere in it. The
+    work runs in node_drill.py (the drain pattern); this voices
+    the outcome."""
+    flags, pos = parse_flags(argv, {})
+    if pos:
+        raise UsageError("`mad node drill` takes no arguments.")
+    pkg = _pkg_node_dir()
+    if not pkg or not os.path.isfile(
+            os.path.join(pkg, "node_drill.py")):
+        voice("The drill isn't in this install. Reinstall "
+              "mad-terminal 0.1.8 - the hold kit ships inside it.")
+        return EXIT_TRANSPORT
+    env = dict(os.environ)
+    env["MAD_NODE_DIR"] = _node_dir()
+    proc = subprocess.run(
+        [sys.executable, os.path.join(pkg, "node_drill.py")],
+        cwd=_node_dir(), capture_output=True, text=True, env=env,
+        timeout=240)
+    print(proc.stdout, end="")
+    if proc.stderr:
+        print(proc.stderr, end="", file=sys.stderr)
+    return EXIT_OK if proc.returncode == 0 else EXIT_API_ERROR
 
 
 def _node_toll_totals():
@@ -2683,6 +2761,7 @@ def _node_status(argv):
         data = {"node": "mad-node-robinhood", "version": VERSION,
                 "running": bool(st.get("grader", {}).get("alive")),
                 "supervisor_pid": st.get("supervisor_pid"),
+                "hold": st.get("hold"),
                 "grader": st.get("grader"),
                 "serve": st.get("serve"),
                 "serve_url": "http://%s:%d" % (
@@ -2700,17 +2779,27 @@ def _node_status(argv):
                 "served_verdicts": served,
                 "toll_collected_usdc": collected,
                 "license": lic}
+        hold = st.get("hold") or {}
+        hold_line = ""
+        if hold:
+            hold_line = (" Hold kit: sentinel %s, recorder %s — "
+                         "`mad node hold` reads the uptime "
+                         "receipt, `mad node drill` proves it." % (
+                             "up" if (hold.get("sentinel") or {})
+                             .get("alive") else "DOWN",
+                             "up" if (hold.get("recorder") or {})
+                             .get("alive") else "DOWN"))
         line = ("MAD node on Robinhood: %s. %d blocks graded "
                 "(%d PASS / %d FLAG), last block %s, tip %s, lag %s "
                 "blocks%s. Serve door %s, tape %d entries, %d "
-                "verdicts served for %.2f USDC." % (
+                "verdicts served for %.2f USDC.%s" % (
                     "RUNNING" if data["running"] else "STOPPED",
                     data["blocks_graded"], data["verdicts"]["PASS"],
                     data["verdicts"]["FLAG"], data["last_block"],
                     data["chain_tip"], data["lag_blocks"],
                     " — AT THE TIP" if data["at_tip"] else "",
                     data["serve_url"], data["tape_entries"], served,
-                    collected))
+                    collected, hold_line))
     else:
         pid = _node_pid()
         alive = _node_alive(pid)
@@ -3451,7 +3540,7 @@ def _node_drain(argv):
     if not pkg or not os.path.isfile(
             os.path.join(pkg, "queue_worker.py")):
         voice("The queue worker isn't in this install. Reinstall "
-              "mad-terminal 0.1.7 - queue_worker.py ships inside it.")
+              "mad-terminal 0.1.8 - queue_worker.py ships inside it.")
         return EXIT_TRANSPORT
     env = dict(os.environ)
     env["MAD_NODE_DIR"] = _node_dir()
@@ -3893,6 +3982,12 @@ THE COMMANDS
                               every open flag
   mad node drain [--list]     grade the node's pending queue items
                               (Robinhood registry births) - receipts
+  mad node hold               the hold kit's receipt - uptime %,
+                              down events, longest outage, mean
+                              recovery per service, from the log
+  mad node drill              the kill drill, FREE - kill the
+                              serve door, time the hold bringing
+                              it back, signed receipt on the tape
                               read, agentIds resolved, follow-ups
                               signed; --list just shows the queue
   mad node sign --backfill | --block N | --verify

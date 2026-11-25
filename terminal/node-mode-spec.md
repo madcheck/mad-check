@@ -1,4 +1,4 @@
-# MAD Terminal Node Mode — Spec (0.1.6 shipped 2026-11-24)
+# MAD Terminal Node Mode — Spec (0.1.8 shipped 2026-11-25)
 
 ## TERMS CHANGE — founder order 2026-11-24 ~21:07 EST
 
@@ -70,7 +70,17 @@ the node pays, not a monthly fee and not DUST.
    the STAY pattern) restarts the grader and the serve door on
    exit, writes a heartbeat + status every 5s, and `mad node
    status` proves the node is at the tip — last graded block vs
-   live chain tip + lag.
+   live chain tip + lag. Since 0.1.8 the supervisor is the HOLD
+   KIT: it health-checks the serve door by actually GETting it
+   (door-answer, not pid-matching — six straight failed probes
+   past the start grace declare a wedge and restart it), adopts
+   foreign copies only on an exact script-name + cwd match and
+   never kills an adopted copy, and stands up two wards — a
+   sentinel that watches the supervisor and respawns it
+   detached if it falls, and an uptime recorder whose log
+   `mad node hold` reads back. Every daemon the kit (re)starts
+   goes out orphan-to-init, so no starter's death takes it
+   down.
 8. **Keeps a public tape.** Flags vs outcomes, hash-chained
    (node-tape.jsonl), served over the door and readable by the
    standing feed. `mad node tape --resolve` follows up every open
@@ -199,6 +209,68 @@ Why this outgrows Bankr:
    agentId back onto the queue item for `mad node tape --resolve`.
    New command: `mad node drain [--list]`. It never touches the
    Base queue or the live grader's queue file.
+9. 0.1.8 (SHIPPED 2026-11-25) — THE HOLD KIT: the hold layer
+   built and proven on MAD's own stack the same day (Journal
+   #048: door-answer health in the supervisor, a sentinel
+   watching the watchers, an uptime recorder, and the
+   orphan-to-init restart form two failed drills paid for;
+   full-kill drill — dead stack back in 147 seconds, no
+   touch), folded into the node so every operator's node holds
+   the same way MAD's stack does. node_stay.py gains
+   door-answer health on the serve door (real GET, needle in
+   the body, wedge after 6 straight failures past a 60s grace;
+   owned children restart, adopted copies are dropped, never
+   killed), exact adoption (script basename + cwd, via the new
+   node_hold.py), and two wards it starts detached and
+   re-checks every loop: node_sentinel.py (watches the
+   supervisor's status freshness and the recorder's log,
+   respawns either detached, same-breath re-check + cooldowns,
+   flock single-instance) and node_hold_recorder.py (30s
+   door-first probes into node-hold-log.jsonl). New command:
+   `mad node hold` — the receipt read back: uptime %, down
+   events, longest outage, mean recovery per service. Also in
+   0.1.8: the node grader's -32003 batch-split fix reaches the
+   installed package (it shipped in source at 0.1.7). The kit
+   never holds a key, never signs, never moves funds — it
+   watches processes and answers doors. Still free.
+   Founder additions, same order (2026-11-25 ~11:39 EST),
+   shipped in the same release:
+   - A2A-LOVABLE SURFACES: the serve door's root and status
+     answers carry a hold_kit block naming the kit and what it
+     proves (door-answer health, sentinel, orphan-to-init
+     restarts, uptime record) at first look — an agent reading
+     the node once understands the hold in one pass. `mad node
+     status` speaks the hold line too.
+   - THE KILL DRILL IS FREE AND SHIPS AS A COMMAND:
+     `mad node drill` kills the serve door by its verified
+     exact pid, times the hold bringing it back (door answers
+     again, new pid), and files the receipt on the node's
+     tape. The drill is FREE for any operator — proof is the
+     free look; it is never gated behind a payment.
+   - ANTI-CLONE BINDING (the cheap, real version): the drill
+     receipt is signed by the operator's ERC-8004 key
+     (sign_verdict, EIP-191 over the receipt's own hash),
+     stored on the tape as the drill entry's "receipt" object
+     — byte-identical to what was signed, so any third agent
+     verifies it from the tape alone with
+     node_tape.verify_signed_verdict — hash-chained into the
+     tape's existing history, and naming the tape's last
+     witness-anchor seq, the point where the node's record
+     was last tied to MAD's witness ledger. A clone gets the
+     code but arrives with no identity, no tape history, no
+     standing. Unsigned when no key is configured, and the
+     receipt says so.
+   NAMED NEXT STEPS (spec'd, not in 0.1.8): witness-anchoring
+   every drill receipt at drill time (today `mad node anchor`
+   anchors the tape head on the operator's call; the drill
+   receipt references the last anchor instead of minting a
+   new one per drill); a sentinel wedge-kill drill at shipped
+   thresholds (the 0.1.8 isolation drill proved the sentinel
+   respawn at a shortened stale threshold — mechanics
+   identical, timing scaled); NODE PLUS+, the premium tier
+   (live data feed of BOTH chains, Base + Robinhood, and
+   more) — named by the founder 2026-11-25, price UNSET,
+   spec after 0.1.8.
 
 ## Open questions for the founder (tomorrow, not tonight)
 - Treasury venue: which tokenized-stock market the treasury

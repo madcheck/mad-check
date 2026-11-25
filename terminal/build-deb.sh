@@ -28,8 +28,12 @@ cp assets/mad-avatar.jpg "$PKG/usr/share/mad-terminal/mad-avatar.jpg"
 # census lookup, the known-agent map, the empty flag list, the
 # staying-alive kit (node_stay.py), the A2A serve door
 # (node_serve.py), the signed-verdict crypto (signing.py) and the
-# public tape (node_tape.py). The node writes its own verdicts to
-# the operator's home, never here.
+# public tape (node_tape.py). 0.1.8 adds the hold kit:
+# node_hold.py (orphan-to-init spawns, door probes, exact
+# adoption), node_sentinel.py (the watcher of the watcher) and
+# node_hold_recorder.py (the uptime witness + --stats readback).
+# The node writes its own verdicts to the operator's home, never
+# here.
 mkdir -p "$PKG/usr/share/mad-terminal/node"
 cp node/node_grader.py node/node_task.py node/lookup.json \
    node/known_agents_robinhood.json \
@@ -37,6 +41,8 @@ cp node/node_grader.py node/node_task.py node/lookup.json \
    node/node_stay.py node/node_serve.py node/signing.py \
    node/node_tape.py node/selftest_robinhood.py \
    node/queue_worker.py \
+   node/node_hold.py node/node_sentinel.py \
+   node/node_hold_recorder.py node/node_drill.py \
    "$PKG/usr/share/mad-terminal/node/"
 chmod 644 "$PKG/usr/share/mad-terminal/node/"*
 
@@ -51,9 +57,42 @@ sed -e "s/^Version: .*/Version: $VERSION/" \
 # Docs: README + changelog, gzipped with -9n (deterministic).
 cp README.md "$PKG/usr/share/doc/mad-terminal/README"
 gzip -9n "$PKG/usr/share/doc/mad-terminal/README"
-# Staged changelog: 0.1.6 entry on top of the 0.1.5 entry.
+# Staged changelog: the current release's entry on top of the
+# previous ones.
 {
   echo "mad-terminal ($VERSION-1) unstable; urgency=medium"
+  echo
+  echo "  * The HOLD KIT (founder's order, 2026-11-25): the hold"
+  echo "    layer proven on MAD's own stack (door-answer health,"
+  echo "    a sentinel, an uptime recorder, orphan-to-init"
+  echo "    restarts - full-kill drill: dead stack back in 147s,"
+  echo "    no touch) folded into the node. node_stay.py now"
+  echo "    probes the serve door by actually GETting it - six"
+  echo "    straight failed probes past the start grace declare"
+  echo "    a wedge and restart it; adoption matches the exact"
+  echo "    script name + cwd and never kills an adopted copy."
+  echo "    The sentinel (node_sentinel.py) watches the"
+  echo "    supervisor's status and respawns it detached if it"
+  echo "    falls; the recorder (node_hold_recorder.py) probes"
+  echo "    every 30s into node-hold-log.jsonl, and the new"
+  echo "    \`mad node hold\` reads the receipt back - uptime %,"
+  echo "    down events, longest outage, mean recovery. The new"
+  echo "    \`mad node drill\` runs the kill drill FREE: it kills"
+  echo "    the serve door, times the hold bringing it back, and"
+  echo "    files the receipt on the node's tape, signed by the"
+  echo "    operator's ERC-8004 key - the anti-clone binding: a"
+  echo "    clone gets the code, never the identity, the tape"
+  echo "    history, or the standing. The serve door's own"
+  echo "    surfaces name the kit and what it proves. Also in"
+  echo "    this release: the node grader's -32003 batch-split"
+  echo "    fix (a fat block's oversized RPC response splits the"
+  echo "    batch and retries instead of killing the grader)"
+  echo "    reaches the installed package. Still free: no"
+  echo "    license, no monthly fee, no DUST for node work."
+  echo
+  echo " -- MAD <madcheck@proton.me>  $(date -u -R)"
+  echo
+  echo "mad-terminal (0.1.7-1) unstable; urgency=medium"
   echo
   echo "  * The queue worker, fixed (founder's order, 2026-11-25):"
   echo "    the 0.1.6 ship carried a Base-chain worker and no drain"

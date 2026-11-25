@@ -1,23 +1,45 @@
 #!/usr/bin/env python3
-"""MAD NODE STAY — the node's staying-alive kit.
+"""MAD NODE STAY — the node's supervisor, hold-kit grade (0.1.8).
 
 The operator's feedback, point 5: "No staying-alive kit. It's a
 detached process that dies when my box restarts, with no heartbeat
 another agent can check. For day-and-night work I need it
 supervised, and a status door that proves it's at the tip."
 
-This is MAD STAY, cut down to one node: the same shape as
-~/workspace/mad-stay/stay.py (flock single-instance, adopt a
-healthy foreign copy instead of double-starting, restart within
-seconds of any exit with backoff, heartbeat + status.json every
-loop), supervising two children:
+0.1.6 shipped this supervisor in MAD STAY's shape (flock
+single-instance, adopt a healthy foreign copy instead of
+double-starting, restart within seconds of any exit with backoff,
+heartbeat + status.json every loop). 0.1.8 makes it the HOLD KIT —
+the hold layer proven on MAD's own stack (Journal #048), folded
+into the node:
+
+  * DOOR-ANSWER health for the serve door: a real HTTP probe of
+    the door's status URL demanding the node needle — a live pid
+    is not proof of life. Six straight failed probes past the
+    60s start grace declare a WEDGE: an owned child is restarted;
+    an adopted copy is never killed — the adoption is dropped and
+    our own is started instead.
+  * EXACT adoption: a foreign copy counts only if one argv
+    element's basename is exactly the script name AND its cwd is
+    the node dir (node_hold.foreign_pid). A substring match once
+    adopted a stranger as the service.
+  * Two wards of its own, started detached (orphan-to-init, via
+    node_hold.spawn_detached) and re-checked every loop: the
+    SENTINEL (node_sentinel.py), which watches THIS supervisor's
+    status freshness and respawns it if it falls; and the HOLD
+    RECORDER (node_hold_recorder.py), which probes the doors
+    every 30s and keeps the uptime log `mad node hold` reads
+    back. Each ward holds its own flock — a double start stands
+    down, never duplicates.
+
+Supervising two children:
 
   * the block grader (grades Robinhood live, writes verdicts);
   * the serve door (the A2A API on 127.0.0.1:8403 — the status
     door another agent can check over HTTP).
 
 `mad node start` starts THIS, not the grader directly. `mad node
-stop` stops this, and it stops both children with it. `mad node
+stop` stops this, the wards, and both children with it. `mad node
 status` reads the status.json this writes, and the serve door
 answers the same numbers over HTTP.
 
@@ -32,6 +54,9 @@ import sys
 import time
 import urllib.request
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import node_hold
+
 HERE = os.path.dirname(os.path.abspath(__file__))
 NODE_DIR = os.environ.get("MAD_NODE_DIR") or os.path.join(
     os.path.expanduser("~"), ".local", "share", "mad-terminal", "node")
@@ -43,6 +68,13 @@ GRADER_LOG = os.path.join(NODE_DIR, "node.log")
 SERVE_LOG = os.path.join(NODE_DIR, "node-serve.log")
 VERDICTS_PATH = os.path.join(NODE_DIR, "verdicts-robinhood.jsonl")
 CONFIG_PATH = os.path.join(NODE_DIR, "node-config.json")
+PID_PATH = os.path.join(NODE_DIR, "node-stay.pid")
+SENTINEL_PID_PATH = os.path.join(NODE_DIR, "node-sentinel.pid")
+SENTINEL_HEARTBEAT_PATH = os.path.join(NODE_DIR,
+                                       "node-sentinel-heartbeat.txt")
+SENTINEL_OUT = os.path.join(NODE_DIR, "node-sentinel.out")
+RECORDER_PID_PATH = os.path.join(NODE_DIR, "node-hold-recorder.pid")
+RECORDER_OUT = os.path.join(NODE_DIR, "node-hold-recorder.out")
 LOOP_S = 5
 RPC_URL = "https://rpc.mainnet.chain.robinhood.com"
 UA = {"User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
@@ -109,21 +141,16 @@ def _tip():
 
 
 def _foreign_pid(match):
-    """Pid of a running copy we did not spawn, or None."""
-    try:
-        out = subprocess.run(
-            ["pgrep", "-f", match],
-            capture_output=True, text=True, timeout=10).stdout.split()
-    except Exception:
-        return None
-    for tok in out:
-        try:
-            pid = int(tok)
-        except ValueError:
-            continue
-        if pid != os.getpid():
-            return pid
-    return None
+    """Pid of a running copy we did not spawn, or None.
+
+    0.1.8: exact matching via node_hold.foreign_pid — one argv
+    element's basename must be exactly the script name and the
+    process must run from the node dir. The old pgrep substring
+    match could adopt any process with the name inside its
+    command line; MAD's own stack adopted a stranger that way
+    once (2026-11-25) and the lesson shipped with the kit.
+    """
+    return node_hold.foreign_pid(match, NODE_DIR)
 
 
 def _counts():
@@ -157,6 +184,7 @@ class Service:
         self.started_at = 0.0
         self.next_start = 0.0
         self.last_exit = None
+        self.health_fails = 0
 
     def alive(self):
         if self.proc is not None:
@@ -179,6 +207,7 @@ class Service:
             start_new_session=True, env=env)
         self.adopted_pid = None
         self.started_at = time.time()
+        self.health_fails = 0
         log("%s started, pid %d" % (self.name, self.proc.pid))
 
     def _kill_owned(self):
@@ -216,6 +245,35 @@ class Service:
                     % (self.name, pid))
             else:
                 self._start()
+        # door-answer health / wedge watch (0.1.8, services that
+        # carry a health_url): a live pid is not proof of life —
+        # the door itself must answer, with the needle in the body.
+        if self.cfg.get("health_url") and self.alive() \
+                and now - self.started_at > self.cfg["start_grace_s"]:
+            up, _lat = node_hold.door_probe(
+                self.cfg["health_url"], self.cfg["health_needle"])
+            if up:
+                self.health_fails = 0
+            else:
+                self.health_fails += 1
+                if self.health_fails >= self.cfg["wedge_after"]:
+                    log("%s WEDGED — %d straight failed door probes, "
+                        "restarting" % (self.name, self.health_fails))
+                    if self.proc is not None:
+                        self._kill_owned()
+                        self.health_fails = 0
+                        self.next_start = now
+                    else:
+                        # An adopted copy is never ours to kill and
+                        # is not this service if it never answers
+                        # this door. Drop the adoption and start
+                        # our own now, instead of re-adopting the
+                        # same foreign copy on the next step.
+                        self.adopted_pid = None
+                        self.health_fails = 0
+                        self.next_start = now
+                        self._start()
+                        return
 
     def status(self, now):
         return {
@@ -228,6 +286,7 @@ class Service:
             "alive": self.alive(),
             "restarts": self.restarts,
             "last_exit": self.last_exit,
+            "health_fails": self.health_fails,
             "uptime_s": int(now - self.started_at) if self.alive() else 0,
         }
 
@@ -238,13 +297,54 @@ def services():
         {"name": "grader",
          "cmd": [sys.executable, os.path.join(HERE, "node_grader.py"),
                  "--blocks", "1000000"],
-         "log": GRADER_LOG, "match": r"node_grader\.py"},
+         "log": GRADER_LOG, "match": "node_grader.py",
+         "health_url": None},
         {"name": "serve",
          "cmd": [sys.executable, os.path.join(HERE, "node_serve.py"),
                  "--port", str(scfg["serve_port"]),
                  "--host", scfg["serve_host"]],
-         "log": SERVE_LOG, "match": r"node_serve\.py"},
+         "log": SERVE_LOG, "match": "node_serve.py",
+         "health_url": "http://%s:%s/v1/node/status" % (
+             scfg["serve_host"], scfg["serve_port"]),
+         "health_needle": '"mad-node-robinhood"',
+         "start_grace_s": 60,
+         "wedge_after": 6},
     ]
+
+
+def _ensure_wards():
+    """Start the hold kit's wards if they are not running.
+
+    The sentinel and the recorder are spawned DETACHED —
+    orphan-to-init via node_hold.spawn_detached — never as
+    children this supervisor waits on. Each ward holds its own
+    flock, so an ensure that races a live ward spawns a copy
+    that stands down on its own; the pid files are how we know.
+    Returns the hold section for status.json.
+    """
+    env = dict(os.environ)
+    env["MAD_NODE_DIR"] = NODE_DIR
+    hold = {}
+    for key, script, pid_path, out_path in (
+            ("sentinel", "node_sentinel.py", SENTINEL_PID_PATH,
+             SENTINEL_OUT),
+            ("recorder", "node_hold_recorder.py", RECORDER_PID_PATH,
+             RECORDER_OUT)):
+        pid = node_hold.read_pid(pid_path)
+        alive = node_hold.pid_alive(pid)
+        if not alive:
+            pid = node_hold.spawn_detached(
+                [sys.executable, os.path.join(HERE, script)],
+                NODE_DIR, out_path, env=env)
+            alive = node_hold.pid_alive(pid)
+            if pid:
+                log("hold ward %s spawned detached, pid %d"
+                    % (key, pid))
+        hold[key] = {"pid": pid, "alive": bool(alive)}
+    hb = node_hold.read_epoch(SENTINEL_HEARTBEAT_PATH)
+    hold["sentinel"]["heartbeat_age_s"] = (
+        int(time.time() - hb) if hb is not None else None)
+    return hold
 
 
 def main():
@@ -255,7 +355,13 @@ def main():
     except OSError:
         return  # another node stay already runs — stand down
     log("MAD NODE STAY up (pid %d)" % os.getpid())
+    try:
+        with open(PID_PATH, "w") as f:
+            f.write(str(os.getpid()))
+    except OSError:
+        pass
     svcs = [Service(c) for c in services()]
+    hold = {}
     while True:
         now = time.time()
         for s in svcs:
@@ -264,12 +370,17 @@ def main():
             except Exception as e:  # a supervisor must not die on a bug
                 log("%s step error: %r" % (s.name, e))
         try:
+            hold = _ensure_wards()
+        except Exception as e:  # the wards must not kill the watch
+            log("hold ward error: %r" % e)
+        try:
             last_block, last_verdict = _last_verdict()
             tip = _tip()
             total, verdicts = _counts()
             st = {
                 "node": "mad-node-robinhood",
                 "supervisor_pid": os.getpid(),
+                "hold": hold,
                 "services": [s.status(now) for s in svcs],
                 "grader": next((s.status(now) for s in svcs
                                 if s.name == "grader"), {}),
