@@ -439,7 +439,7 @@ remote_prep() { # remote_prep <target> <sudo> — OS check, packages, user, dirs
     ssh "$target" $sudo bash -s <<'PREP_EOF'
 set -euo pipefail
 . /etc/os-release
-if [ "$VERSION_ID" != "24.04" ]; then echo "FATAL: need Ubuntu 24.04, found $VERSION_ID" >&2; exit 1; fi
+case "$VERSION_ID" in 24.04|26.04) ;; *) echo "FATAL: need Ubuntu 24.04 or 26.04, found $VERSION_ID" >&2; exit 1 ;; esac
 export DEBIAN_FRONTEND=noninteractive
 apt-get update -qq
 apt-get install -y -qq python3 python3-venv python3-pip nginx certbot python3-certbot-nginx rsync ufw curl
@@ -449,6 +449,7 @@ chown mad:mad /home/mad/workspace /var/www/api
 chown mad:mad /home/mad
 ufw allow OpenSSH >/dev/null 2>&1 || ufw allow 22/tcp >/dev/null 2>&1 || true
 ufw allow 8443/tcp >/dev/null 2>&1 || true
+ufw allow 8402/tcp >/dev/null 2>&1 || true
 ufw allow 80/tcp >/dev/null 2>&1 || true
 ufw allow 443/tcp >/dev/null 2>&1 || true
 ufw --force enable >/dev/null 2>&1 || true
@@ -577,7 +578,7 @@ UNITS_EOF
 
 cmd_remote() {
     local target="$1"
-    case "$target" in *@*:*) ;; *) die "target must be user@host" ;; esac
+    case "$target" in *@*) ;; *) die "target must be user@host" ;; esac
     [ -f "$API_SRC/server.py" ] || die "canonical API not found at $API_SRC/server.py"
     [ -f "$LANDING_SRC" ] || die "landing page not found at $LANDING_SRC"
     [ -f "$NODE_PAGE_SRC" ] || die "node page not found at $NODE_PAGE_SRC"
@@ -610,6 +611,11 @@ cmd_remote() {
     sync_pass_data "$target:$REMOTE_PASS/" -e ssh --rsync-path="$rsync_path"
     rsync -a -e ssh --rsync-path="$rsync_path" "$LANDING_SRC" "$target:$SITE_ROOT/index.html"
     rsync -a -e ssh --rsync-path="$rsync_path" "$NODE_PAGE_SRC" "$target:$SITE_ROOT/node.html"
+
+    # rsync via sudo lands the tree with the SOURCE's ownership (root when the
+    # source runs as root); the stack runs as mad, so hand the tree over.
+    log "handing the synced tree to the mad user"
+    ssh "$target" $sudo_cmd chown -R mad:mad "$REMOTE_WS" "$SITE_ROOT"
 
     # Secrets: copied only if the target does not already have them.
     ssh "$target" $sudo_cmd mkdir -p "$REMOTE_HOME/.secrets"
@@ -657,7 +663,7 @@ cmd_remote() {
 
 cmd_tls() { # cmd_tls <user@host> — run AFTER DNS points at the box
     local target="$1"
-    case "$target" in *@*:*) ;; *) die "target must be user@host" ;; esac
+    case "$target" in *@*) ;; *) die "target must be user@host" ;; esac
     log "issuing TLS certs (needs DNS already pointing at the box)"
     ssh "$target" sudo certbot --nginx -d madcheck.xyz -d www.madcheck.xyz -d api.madcheck.xyz \
         --non-interactive --agree-tos -m madcheck@proton.me --redirect \
